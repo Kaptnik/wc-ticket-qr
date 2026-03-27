@@ -1,0 +1,9 @@
+{
+    "require": {
+        "bacon/bacon-qr-code": "^2.0",
+        "dasprid/enum": "^1.0"
+    },
+    "config": {
+        "vendor-dir": "vendor"
+    }
+}
