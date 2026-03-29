@@ -123,8 +123,6 @@ class WCTQR_Retro {
     }
 
     public function generate_and_send( $order_id ) {
-        global $wpdb;
-
         error_log( 'WCTQR: generate_and_send called for order ' . $order_id );
 
         $order = wc_get_order( $order_id );
@@ -133,49 +131,11 @@ class WCTQR_Retro {
             return false;
         }
 
-        error_log( 'WCTQR: order loaded OK' );
-
+        // Delegate to generator — it handles both modes correctly
         $generator = new WCTQR_Generator();
-        $tickets_created = 0;
+        $generator->generate_tickets( $order_id );
 
-        foreach ( $order->get_items() as $item_id => $item ) {
-            $product = $item->get_product();
-            if ( ! $product ) {
-                error_log( 'WCTQR: item ' . $item_id . ' has no product' );
-                continue;
-            }
-
-            // For variable products, _is_ticket lives on the parent
-            $is_ticket = $product->get_meta( '_is_ticket' );
-            if ( ! $is_ticket && $product->get_parent_id() ) {
-                $parent    = wc_get_product( $product->get_parent_id() );
-                $is_ticket = $parent ? $parent->get_meta( '_is_ticket' ) : '';
-            }
-            error_log( 'WCTQR: item ' . $item_id . ' _is_ticket=' . var_export( $is_ticket, true ) );
-
-            if ( ! $is_ticket ) continue;
-
-            $qty = $item->get_quantity();
-            for ( $i = 0; $i < $qty; $i++ ) {
-                $token  = $generator->make_token( $order_id, $item_id, $i );
-                $exists = $wpdb->get_var( $wpdb->prepare(
-                    "SELECT id FROM {$wpdb->prefix}ticket_qr WHERE token = %s", $token
-                ) );
-                if ( ! $exists ) {
-                    $wpdb->insert(
-                        $wpdb->prefix . 'ticket_qr',
-                        [ 'order_id' => $order_id, 'order_item_id' => $item_id, 'token' => $token ],
-                        [ '%d', '%d', '%s' ]
-                    );
-                    $tickets_created++;
-                    error_log( 'WCTQR: created token for item ' . $item_id . ' index ' . $i );
-                } else {
-                    error_log( 'WCTQR: token already exists for item ' . $item_id . ' index ' . $i );
-                }
-            }
-        }
-
-        error_log( 'WCTQR: ' . $tickets_created . ' new token(s) created, now sending email' );
+        error_log( 'WCTQR: tokens generated, now sending email' );
 
         $email  = new WCTQR_Ticket_Email();
         $result = $email->trigger( $order_id );
