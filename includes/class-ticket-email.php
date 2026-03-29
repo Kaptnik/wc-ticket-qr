@@ -40,14 +40,29 @@ class WCTQR_Ticket_Email {
     }
 
     private function ticket_html( $ticket, $index, $total ) {
-        $token_short = strtoupper( substr( $ticket->token, 0, 8 ) );
-        $qr_url      = $this->qr_url( $ticket->token );
-        $qr_size     = absint( WCTQR_Settings::get('wctqr_qr_module_size') ?: 300 );
-        $title       = esc_html( WCTQR_Settings::get('wctqr_ticket_title') ?: 'Admit One' );
-        $footer      = WCTQR_Settings::get('wctqr_email_footer') ?: 'Single-use &bull; Do not share';
+        $token_short  = strtoupper( substr( $ticket->token, 0, 8 ) );
+        $qr_url       = $this->qr_url( $ticket->token );
+        $qr_size      = absint( WCTQR_Settings::get('wctqr_qr_module_size') ?: 300 );
+        $footer       = WCTQR_Settings::get('wctqr_email_footer') ?: 'Single-use &bull; Do not share';
+        $qty          = isset($ticket->quantity) ? (int)$ticket->quantity : 1;
+        $per_order    = WCTQR_Settings::is_per_order_mode();
+
+        // Resolve title placeholders — {admits} = how many people this ticket admits
+        $title_tpl = WCTQR_Settings::get('wctqr_ticket_title') ?: 'Admit One';
+        $title = str_replace(
+            [ '{ticket_number}', '{total_tickets}', '{number_of_items_in_order}', '{admits}' ],
+            [ $index + 1,        $total,             $total,                        $qty       ],
+            $title_tpl
+        );
+        $title = esc_html( $title );
+
+        // Label above QR — differs by mode
+        $label = $per_order
+            ? 'Admits ' . intval($qty) . ' ' . ( $qty === 1 ? 'person' : 'people' )
+            : 'Ticket ' . intval($index+1) . ' of ' . intval($total);
 
         $html  = '<div style="margin:20px 0;padding:24px;background:#f9f9fb;border:2px solid #7c3aed;border-radius:12px;text-align:center;font-family:sans-serif;">';
-        $html .= '<p style="margin:0 0 4px;font-size:13px;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Ticket ' . intval($index+1) . ' of ' . intval($total) . '</p>';
+        $html .= '<p style="margin:0 0 4px;font-size:13px;color:#888;text-transform:uppercase;letter-spacing:0.05em;">' . esc_html($label) . '</p>';
         $html .= '<p style="margin:0 0 16px;font-size:18px;font-weight:bold;color:#1e1e3e;">&#127903; ' . $title . '</p>';
 
         if ( $qr_url ) {
