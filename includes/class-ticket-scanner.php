@@ -84,6 +84,51 @@ body{background:#0f0f1a!important;}
 .wctqr-detail-label{font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#666;margin-bottom:2px;}
 .wctqr-detail-value{font-size:14px;color:#e0e0e0;font-weight:500;}
 
+/* Modal overlay */
+#wctqr-modal-overlay{
+    display:none;position:fixed;inset:0;z-index:9999;
+    background:rgba(0,0,0,0.75);
+    align-items:center;justify-content:center;
+    padding:16px;
+    animation:wctqr-fadein 0.15s ease;
+}
+#wctqr-modal-overlay.open{display:flex;}
+@keyframes wctqr-fadein{from{opacity:0;}to{opacity:1;}}
+#wctqr-modal{
+    width:100%;max-width:420px;border-radius:20px;overflow:hidden;
+    animation:wctqr-pop 0.2s ease;
+    max-height:90vh;overflow-y:auto;
+}
+#wctqr-modal.valid  {background:#052e16;border:3px solid #16a34a;}
+#wctqr-modal.invalid{background:#2d0505;border:3px solid #dc2626;}
+#wctqr-modal.warning{background:#1c1000;border:3px solid #d97706;}
+#wctqr-modal-body{padding:24px 24px 0;}
+#wctqr-modal-icon{font-size:56px;text-align:center;margin-bottom:12px;line-height:1;}
+#wctqr-modal-title{font-size:22px;font-weight:800;text-align:center;margin:0 0 4px;}
+#wctqr-modal.valid   #wctqr-modal-title{color:#4ade80;}
+#wctqr-modal.invalid #wctqr-modal-title{color:#f87171;}
+#wctqr-modal.warning #wctqr-modal-title{color:#fbbf24;}
+#wctqr-modal-sub{font-size:14px;color:#aaa;text-align:center;margin:0 0 20px;}
+#wctqr-modal-details{
+    border-top:1px solid rgba(255,255,255,0.08);
+    padding-top:16px;
+    display:grid;grid-template-columns:1fr 1fr;gap:12px;
+}
+.wctqr-modal-detail-item{}
+.wctqr-modal-detail-label{font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#666;margin-bottom:2px;}
+.wctqr-modal-detail-value{font-size:14px;color:#e0e0e0;font-weight:500;}
+.wctqr-modal-detail-value.highlight{font-size:20px;font-weight:800;color:#4ade80;}
+.wctqr-modal-full{grid-column:1/-1;}
+#wctqr-modal-btn{
+    display:block;width:100%;padding:18px;margin-top:24px;
+    border:none;cursor:pointer;font-size:18px;font-weight:700;
+    letter-spacing:0.02em;
+}
+#wctqr-modal.valid   #wctqr-modal-btn{background:#16a34a;color:#fff;}
+#wctqr-modal.invalid #wctqr-modal-btn{background:#dc2626;color:#fff;}
+#wctqr-modal.warning #wctqr-modal-btn{background:#d97706;color:#fff;}
+#wctqr-modal-btn:active{opacity:0.85;}
+
 /* Scan Log */
 #wctqr-log-section{margin-top:24px;}
 #wctqr-log-section h3{font-size:13px;color:#555;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.05em;}
@@ -117,6 +162,19 @@ body{background:#0f0f1a!important;}
 #wctqr-manual-btn{padding:10px 16px;background:#7c3aed;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;}
 </style>
 
+<!-- Modal -->
+<div id="wctqr-modal-overlay">
+    <div id="wctqr-modal">
+        <div id="wctqr-modal-body">
+            <div id="wctqr-modal-icon"></div>
+            <h2 id="wctqr-modal-title"></h2>
+            <p id="wctqr-modal-sub"></p>
+            <div id="wctqr-modal-details"></div>
+        </div>
+        <button id="wctqr-modal-btn" onclick="wctqrCloseModal()">&#10003; OK — Next Scan</button>
+    </div>
+</div>
+
 <div id="wctqr-wrap">
     <div id="wctqr-header">
         <h2>&#127903; Ticket Scanner</h2>
@@ -134,7 +192,7 @@ body{background:#0f0f1a!important;}
         </div>
         <div id="wctqr-scanline"></div>
     </div>
-    <div id="wctqr-result"><p class="wctqr-idle">Waiting for scan&hellip;</p></div>
+    <p class="wctqr-idle" style="text-align:center;margin-top:16px;" id="wctqr-status-text">Waiting for scan&hellip;</p>
     <details id="wctqr-manual-section">
         <summary>&#9998; Enter token manually</summary>
         <div id="wctqr-manual-row">
@@ -150,11 +208,10 @@ body{background:#0f0f1a!important;}
 
 <script>
 (function(){
-    var BASE  = <?php echo json_encode($validate_base); ?>;
-    var NONCE = <?php echo json_encode($nonce); ?>;
-    var MAX_LOG = <?php echo intval($max_log); ?>;
+    var BASE     = <?php echo json_encode($validate_base); ?>;
+    var NONCE    = <?php echo json_encode($nonce); ?>;
+    var MAX_LOG  = <?php echo intval($max_log); ?>;
     var lastToken='', cooldown=false;
-    var scanLog = []; // stores full data for each scan
 
     // ── ZXing ────────────────────────────────────────────────────────────────
     function initScanner() {
@@ -168,7 +225,7 @@ body{background:#0f0f1a!important;}
                 }
             });
         } catch(e){
-            setResult('<div class="wctqr-card invalid"><div class="wctqr-card-header"><div class="wctqr-card-icon">&#128247;</div><div class="wctqr-card-status"><h3>Scanner Error</h3><p>'+e.message+'</p></div></div></div>');
+            setStatus('&#128247; Scanner error: '+e.message);
         }
     }
     window.addEventListener?window.addEventListener('load',initScanner):initScanner();
@@ -183,85 +240,216 @@ body{background:#0f0f1a!important;}
         if(!token)return;
         token=token.trim().toLowerCase();
         if(!/^[a-f0-9]{64}$/.test(token)){
-            setResult(makeCard('invalid','&#10060;','Invalid Format','Not a valid ticket token.',null));
+            showModal('invalid','&#10060;','Invalid Format','Not a valid ticket token.',null);
             return;
         }
         cooldown=true;
-        setResult('<p class="wctqr-idle" style="color:#7c3aed;">&#128269; Validating&hellip;</p>');
+        setStatus('&#128269; Validating&hellip;');
 
         fetch(BASE+token,{method:'POST',headers:{'X-WP-Nonce':NONCE,'Content-Type':'application/json'}})
         .then(function(r){return r.json().then(function(d){return{s:r.status,d:d};});})
         .then(function(r){
-            var d=r.d,s=r.s;
-            var ref=token.substring(0,8).toUpperCase()+'&hellip;';
+            var d=r.d, s=r.s;
             var time=new Date().toLocaleTimeString();
             var logType,icon,title,sub;
 
             if(s===200&&d.valid){
-                icon='&#9989;';title='VALID &mdash; ADMIT';sub='Order #'+(d.order_id||'?');
+                var admits=d.admits||1;
+                icon='&#9989;';
+                title=admits>1?'VALID — ADMIT '+admits+' PEOPLE':'VALID — ADMIT';
+                sub='Order #'+(d.order_id||'?');
                 logType='valid';
-                setResult(makeCard('valid',icon,title,sub,d));
                 vibrate([100,50,100]);
             } else {
-                if(s===409){icon='&#9888;&#65039;';title='ALREADY SCANNED';logType='warning';sub=d.scanned_at?'Scanned: '+d.scanned_at:'Previously admitted.';}
-                else if(s===410){icon='&#10060;';title='TICKET CANCELLED';logType='invalid';sub='Refunded or cancelled.';}
-                else if(s===404){icon='&#10060;';title='INVALID TICKET';logType='invalid';sub='Token not found.';}
+                if(s===409){icon='&#9888;&#65039;';title='ALREADY SCANNED';logType='warning';sub=d.scanned_at?'Previously scanned at: '+d.scanned_at:'Previously admitted.';}
+                else if(s===410){icon='&#10060;';title='TICKET CANCELLED';logType='invalid';sub='This ticket has been refunded or cancelled.';}
+                else if(s===404){icon='&#10060;';title='INVALID TICKET';logType='invalid';sub='Token not recognised.';}
                 else{icon='&#10060;';title='REJECTED';logType='invalid';sub=d.message||'';}
-                setResult(makeCard(logType,icon,title,sub,d));
                 vibrate([300]);
             }
 
-            // Add to session log
-            addToLog(logType, icon, ref, time, d, title);
-
-            setTimeout(function(){
-                lastToken='';cooldown=false;
-                setResult('<p class="wctqr-idle">Ready for next scan&hellip;</p>');
-            },3500);
+            addToLog(logType,icon,time,d,title);
+            showModal(logType,icon,title,sub,d);
+            setStatus('Scan complete — close popup to continue.');
         })
         .catch(function(e){
-            setResult(makeCard('invalid','&#9889;','Network Error',e.message,null));
-            setTimeout(function(){cooldown=false;lastToken='';},3000);
+            showModal('invalid','&#9889;','Network Error',e.message,null);
         });
     };
 
-    // ── Card builder ──────────────────────────────────────────────────────────
-    function makeCard(type,icon,title,sub,d){
-        var html='<div class="wctqr-card '+type+'">'
-            +'<div class="wctqr-card-header">'
-            +'<div class="wctqr-card-icon">'+icon+'</div>'
-            +'<div class="wctqr-card-status"><h3>'+title+'</h3>'+(sub?'<p>'+sub+'</p>':'')+'</div></div>';
-        if(d&&(d.attendee||d.product_name)){
-            html+='<div class="wctqr-details">';
-            if(d.attendee)     html+=di('Attendee',esc(d.attendee));
-            if(d.variation)    html+=di('Type',esc(d.variation));
-            if(d.event_date)   html+=di('Date',esc(d.event_date));
-            if(d.event_venue)  html+=di('Venue',esc(d.event_venue));
-            if(d.ticket_number)html+=di('Ticket',esc(d.ticket_number));
-            if(d.order_id)     html+=di('Order','#'+d.order_id);
-            html+='</div>';
+    // ── Modal ─────────────────────────────────────────────────────────────────
+    function showModal(type,icon,title,sub,d){
+        var overlay = document.getElementById('wctqr-modal-overlay');
+        var modal   = document.getElementById('wctqr-modal');
+        var btn     = document.getElementById('wctqr-modal-btn');
+
+        modal.className = type;
+        document.getElementById('wctqr-modal-icon').innerHTML  = icon;
+        document.getElementById('wctqr-modal-title').textContent = title;
+        document.getElementById('wctqr-modal-sub').textContent   = sub||'';
+
+        // Button label and colour match the result
+        if(type==='valid'){
+            btn.textContent = '✓  OK — Next Scan';
+        } else if(type==='warning'){
+            btn.textContent = '⚠  Acknowledged — Next Scan';
+        } else {
+            btn.textContent = '✕  Dismiss — Next Scan';
         }
-        html+='</div>';
-        return html;
+
+        // Build details
+        var det=document.getElementById('wctqr-modal-details');
+        det.innerHTML='';
+        if(d){
+            var admits=d.admits||1;
+
+            // ── Per-order mode: itemized breakdown ──────────────────────────
+            if(d.items&&d.items.length){
+                // Admits header — full width, large
+                var admitsEl=document.createElement('div');
+                admitsEl.className='wctqr-modal-detail-item wctqr-modal-full';
+                admitsEl.innerHTML='<div class="wctqr-modal-detail-label">Total admits</div>'
+                    +'<div class="wctqr-modal-detail-value'+(admits>1?' highlight':'')+'"> '
+                    +(admits>1?'&#128101; '+admits+' people':'&#128100; 1 person')+'</div>';
+                det.appendChild(admitsEl);
+
+                // Attendee
+                if(d.attendee){
+                    var attEl=document.createElement('div');
+                    attEl.className='wctqr-modal-detail-item wctqr-modal-full';
+                    attEl.innerHTML='<div class="wctqr-modal-detail-label">Attendee</div>'
+                        +'<div class="wctqr-modal-detail-value">'+esc(d.attendee)+'</div>';
+                    det.appendChild(attEl);
+                }
+
+                // Divider label
+                var divEl=document.createElement('div');
+                divEl.className='wctqr-modal-detail-item wctqr-modal-full';
+                divEl.style.cssText='border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;margin-top:4px;';
+                divEl.innerHTML='<div class="wctqr-modal-detail-label" style="margin-bottom:8px;">Ticket breakdown</div>';
+
+                // Each line item
+                var itemsHtml='';
+                d.items.forEach(function(item){
+                    var attrParts=[];
+                    if(item.attributes&&typeof item.attributes==='object'){
+                        Object.keys(item.attributes).forEach(function(k){
+                            attrParts.push(esc(item.attributes[k]));
+                        });
+                    }
+                    var desc=esc(item.name)+(attrParts.length?' &mdash; '+attrParts.join(' / '):'');
+                    itemsHtml+='<div style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);">'
+                        +'<span style="color:#ccc;font-size:14px;">'+desc+'</span>'
+                        +'<span style="color:#fff;font-weight:700;font-size:16px;margin-left:12px;white-space:nowrap;">&#10005; '+item.quantity+'</span>'
+                        +'</div>';
+                });
+                divEl.innerHTML+='<div style="margin-top:4px;">'+itemsHtml+'</div>';
+                det.appendChild(divEl);
+
+                // Event info
+                if(d.event_date||d.event_venue){
+                    var evEl=document.createElement('div');
+                    evEl.className='wctqr-modal-detail-item wctqr-modal-full';
+                    evEl.style.cssText='border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;margin-top:6px;display:grid;grid-template-columns:1fr 1fr;gap:10px;';
+                    var evHtml='';
+                    if(d.event_date)  evHtml+=mdi('Date',esc(d.event_date));
+                    if(d.event_venue) evHtml+=mdi('Venue',esc(d.event_venue));
+                    evEl.innerHTML=evHtml;
+                    det.appendChild(evEl);
+                }
+
+                if(d.order_id){
+                    var ordEl=document.createElement('div');
+                    ordEl.className='wctqr-modal-detail-item wctqr-modal-full';
+                    ordEl.innerHTML=mdi('Order','#'+d.order_id);
+                    det.appendChild(ordEl);
+                }
+
+            // ── Per-ticket mode: single ticket details ──────────────────────
+            } else {
+                var rows2=[];
+                // Admits
+                rows2.push({l:'Admits',v:(admits>1?admits+' people':'1 person'),big:(admits>1)});
+                if(d.attendee)     rows2.push({l:'Attendee',v:d.attendee});
+                if(d.event_name)   rows2.push({l:'Event',v:d.event_name});
+                if(d.product_name&&d.product_name!==d.event_name) rows2.push({l:'Product',v:d.product_name});
+                // Individual attributes
+                if(d.attributes&&typeof d.attributes==='object'&&Object.keys(d.attributes).length){
+                    Object.keys(d.attributes).forEach(function(k){ rows2.push({l:k,v:d.attributes[k]}); });
+                } else if(d.variation){
+                    rows2.push({l:'Ticket Type',v:d.variation});
+                }
+                if(d.event_date)    rows2.push({l:'Date',v:d.event_date});
+                if(d.event_venue)   rows2.push({l:'Venue',v:d.event_venue});
+                if(d.ticket_number) rows2.push({l:'Ticket',v:d.ticket_number});
+                if(d.order_id)      rows2.push({l:'Order',v:'#'+d.order_id});
+                if(d.scanned_at)    rows2.push({l:'Scanned At',v:d.scanned_at});
+
+                rows2.forEach(function(row){
+                    var el=document.createElement('div');
+                    el.className='wctqr-modal-detail-item';
+                    el.innerHTML='<div class="wctqr-modal-detail-label">'+esc(row.l)+'</div>'
+                        +'<div class="wctqr-modal-detail-value'+(row.big?' highlight':'')+'">'+esc(String(row.v))+'</div>';
+                    det.appendChild(el);
+                });
+            }
+        }
+
+        overlay.classList.add('open');
+        // Scroll modal to top in case it's long
+        document.getElementById('wctqr-modal').scrollTop=0;
+        // Focus the button so pressing Enter/Space dismisses on keyboard
+        setTimeout(function(){ btn.focus(); }, 100);
     }
 
-    function di(label,value){
-        return '<div><div class="wctqr-detail-label">'+label+'</div><div class="wctqr-detail-value">'+value+'</div></div>';
-    }
+    window.wctqrCloseModal=function(){
+        document.getElementById('wctqr-modal-overlay').classList.remove('open');
+        // Reset so the same QR can't re-trigger without re-scanning
+        lastToken='';
+        cooldown=false;
+        setStatus('Ready for next scan&hellip;');
+        // Clear manual input
+        var inp=document.getElementById('wctqr-manual-input');
+        if(inp) inp.value='';
+    };
+
+    // Close on backdrop tap (outside the modal card)
+    document.getElementById('wctqr-modal-overlay').addEventListener('click',function(e){
+        if(e.target===this) wctqrCloseModal();
+    });
 
     // ── Expandable log ────────────────────────────────────────────────────────
-    function addToLog(type,icon,ref,time,d,statusTitle){
+    function addToLog(type,icon,time,d,statusTitle){
         var log=document.getElementById('wctqr-log');
         var empty=log.querySelector('p');
         if(empty)empty.remove();
 
-        // Build details fields
+        var admits = d&&d.admits ? d.admits : 1;
+
+        // Build details fields for expandable log
         var detailFields=[];
         if(d){
-            if(d.attendee)      detailFields.push({l:'Attendee',v:d.attendee});
-            if(d.email)         detailFields.push({l:'Email',v:d.email});
-            if(d.product_name)  detailFields.push({l:'Event',v:d.product_name});
-            if(d.variation)     detailFields.push({l:'Ticket Type',v:d.variation});
+            detailFields.push({l:'Admits',v:(admits>1?admits+' people':'1 person')});
+            if(d.attendee) detailFields.push({l:'Attendee',v:d.attendee});
+
+            if(d.items&&d.items.length){
+                // Per-order: list each line item
+                d.items.forEach(function(item){
+                    var attrParts=[];
+                    if(item.attributes&&typeof item.attributes==='object'){
+                        Object.keys(item.attributes).forEach(function(k){ attrParts.push(item.attributes[k]); });
+                    }
+                    var label = item.name + (attrParts.length ? ' — '+attrParts.join(' / ') : '');
+                    detailFields.push({l:label, v:'× '+item.quantity});
+                });
+            } else {
+                if(d.attributes&&typeof d.attributes==='object'&&Object.keys(d.attributes).length){
+                    Object.keys(d.attributes).forEach(function(k){ detailFields.push({l:k,v:d.attributes[k]}); });
+                } else if(d.variation){
+                    detailFields.push({l:'Ticket Type',v:d.variation});
+                }
+            }
+
             if(d.event_date)    detailFields.push({l:'Date',v:d.event_date});
             if(d.event_venue)   detailFields.push({l:'Venue',v:d.event_venue});
             if(d.ticket_number) detailFields.push({l:'Ticket #',v:d.ticket_number});
@@ -279,35 +467,49 @@ body{background:#0f0f1a!important;}
             detailsHtml='<div style="grid-column:1/-1;color:#555;font-size:12px;">No details available</div>';
         }
 
-        var summaryText = d&&d.attendee
-            ? esc(d.attendee) + (d.variation?' &mdash; '+esc(d.variation):'')
-            : ref;
+        // Summary line for collapsed log entry
+        var summaryParts=[];
+        if(d&&d.attendee) summaryParts.push(esc(d.attendee));
+        if(d&&d.items&&d.items.length){
+            // Per-order: show total count
+            summaryParts.push(admits+' ticket'+(admits!==1?'s':''));
+        } else if(d&&d.attributes&&typeof d.attributes==='object'&&Object.keys(d.attributes).length){
+            var attrVals=Object.values(d.attributes);
+            if(attrVals.length) summaryParts.push(attrVals.map(function(v){return esc(v);}).join(' / '));
+        } else if(d&&d.variation) {
+            summaryParts.push(esc(d.variation));
+        }
+        var summaryText = summaryParts.length ? summaryParts.join(' &mdash; ') : (statusTitle||'Scan');
+        var admitsBadge = admits>1
+            ? ' <span style="background:#16a34a;color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;vertical-align:middle;">+'+admits+'</span>'
+            : '';
 
         var entry=document.createElement('div');
         entry.className='wctqr-log-entry '+type;
         entry.innerHTML=
             '<div class="wctqr-log-summary">'
-            +'<span class="wctqr-log-summary-left">'+icon+' <span>'+summaryText+'</span><span class="wctqr-log-chevron">&#9660;</span></span>'
+            +'<span class="wctqr-log-summary-left">'+icon+' <span>'+summaryText+admitsBadge+'</span><span class="wctqr-log-chevron">&#9660;</span></span>'
             +'<span class="wctqr-log-time">'+time+'</span>'
             +'</div>'
             +'<div class="wctqr-log-details">'+detailsHtml+'</div>';
 
-        // Toggle expand on click
         entry.querySelector('.wctqr-log-summary').addEventListener('click',function(){
             entry.classList.toggle('open');
         });
 
         log.insertBefore(entry,log.firstChild);
-
-        // Keep max entries
         while(log.children.length>MAX_LOG) log.removeChild(log.lastChild);
-
-        // Update count
         document.getElementById('wctqr-log-count').textContent='('+log.children.length+')';
     }
 
-    function setResult(html){document.getElementById('wctqr-result').innerHTML=html;}
+    function setStatus(msg){
+        var el=document.getElementById('wctqr-status-text');
+        if(el) el.innerHTML=msg;
+    }
     function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+    function mdi(label,value){
+        return '<div class="wctqr-modal-detail-item"><div class="wctqr-modal-detail-label">'+label+'</div><div class="wctqr-modal-detail-value">'+value+'</div></div>';
+    }
     function vibrate(p){if(navigator.vibrate)navigator.vibrate(p);}
 })();
 </script>
