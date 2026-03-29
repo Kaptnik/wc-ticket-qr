@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       WooCommerce Ticket QR
- * Plugin URI:        https://github.com/YOUR_USERNAME/wc-ticket-qr
+ * Plugin URI:        https://github.com/Kaptnik/wc-ticket-qr
  * Description:       Generates unique, single-use QR code tickets for WooCommerce. Supports PDF tickets, bulk sending, door scanning, and refund invalidation.
  * Version:           1.1.0
  * Author:            Karthik Umashankar
@@ -27,15 +27,17 @@ function wctqr_activate() {
     $table   = $wpdb->prefix . 'ticket_qr';
     $charset = $wpdb->get_charset_collate();
     $sql = "CREATE TABLE IF NOT EXISTS {$table} (
-        id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-        order_id      BIGINT UNSIGNED NOT NULL,
-        order_item_id BIGINT UNSIGNED NOT NULL,
-        token         VARCHAR(64)     NOT NULL,
-        scanned       TINYINT(1)      NOT NULL DEFAULT 0,
-        scanned_at    DATETIME                 DEFAULT NULL,
-        voided        TINYINT(1)      NOT NULL DEFAULT 0,
-        voided_at     DATETIME                 DEFAULT NULL,
-        created_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        id                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        order_id           BIGINT UNSIGNED NOT NULL,
+        order_item_id      BIGINT UNSIGNED NOT NULL DEFAULT 0,
+        token              VARCHAR(64)     NOT NULL,
+        quantity           INT UNSIGNED    NOT NULL DEFAULT 1,
+        order_item_summary LONGTEXT                 DEFAULT NULL,
+        scanned            TINYINT(1)      NOT NULL DEFAULT 0,
+        scanned_at         DATETIME                 DEFAULT NULL,
+        voided             TINYINT(1)      NOT NULL DEFAULT 0,
+        voided_at          DATETIME                 DEFAULT NULL,
+        created_at         DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY  (id),
         UNIQUE KEY   token (token),
         KEY          order_id (order_id)
