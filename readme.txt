@@ -3,7 +3,7 @@ Contributors: karthikumashankar
 Tags: woocommerce, tickets, qr code, events, pdf, event tickets
 Requires at least: 6.0
 Tested up to: 6.5
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -78,6 +78,20 @@ Add `define('WCTQR_SECRET', 'your-random-string');` to `wp-config.php`, or set i
 
 == Changelog ==
 
+= 1.2.0 =
+* Added per-order QR mode: one QR code for the entire order admitting all attendees with a single scan
+* Per-order scan result shows itemized ticket breakdown (e.g. "3 Adult - Vegetarian, 2 Child - Kids Meal")
+* Scanner result now appears in a modal popup requiring explicit acknowledgement before next scan
+* Modal displays admits count prominently, all variation attributes individually, and full order breakdown
+* Added {admits} placeholder for ticket card title (resolves to number of people this ticket admits)
+* Added {ticket_number} and {total_tickets} placeholders for ticket card title
+* QR mode setting added to settings panel with clear per-ticket vs per-order descriptions
+* DB schema updated: added quantity and order_item_summary columns
+* REST API response now includes itemized items array for per-order tickets
+* Expandable scan log shows per-order item breakdown in collapsed summary and expanded view
+* Updated plugin URI to GitHub repository
+* Simplified retro/bulk classes to delegate token generation to WCTQR_Generator
+
 = 1.1.0 =
 * Added configurable settings panel (email content, QR size, batch size, and more)
 * Added bulk order action with batched processing and live progress screen
@@ -98,5 +112,9 @@ Add `define('WCTQR_SECRET', 'your-random-string');` to `wp-config.php`, or set i
 
 == Upgrade Notice ==
 
+= 1.2.0 =
+Database migration required: two new columns (quantity, order_item_summary) are added automatically on activation. Deactivate and reactivate the plugin after updating to apply. Regenerate tokens for existing orders using the "Generate & Resend" button.
+
 = 1.1.0 =
 Adds settings panel, bulk actions, and expandable scan log. No database changes required.
+

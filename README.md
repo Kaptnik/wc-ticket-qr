@@ -169,7 +169,7 @@ Pull requests are welcome! Please:
 ### Development setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/wc-ticket-qr.git
+git clone https://github.com/Kaptnik/wc-ticket-qr.git
 cd wc-ticket-qr
 # Place in wp-content/plugins/ of a local WordPress install
 ```
@@ -177,6 +177,18 @@ cd wc-ticket-qr
 ---
 
 ## 📋 Changelog
+
+### 1.2.0
+- **Per-order QR mode** — one QR code for the entire order; a single scan admits all attendees
+- **Itemized scan result** — modal shows full ticket breakdown (e.g. `3× Adult - Vegetarian`, `2× Child - Kids Meal`)
+- **Modal popup on scan** — result requires explicit acknowledgement before next scan is possible
+- **`{admits}` placeholder** — ticket card title resolves to number of people this ticket admits
+- **`{ticket_number}` / `{total_tickets}` placeholders** — for per-ticket title customisation
+- **QR mode setting** — choose per-ticket or per-order in the settings panel
+- **DB schema** — added `quantity` and `order_item_summary` columns
+- **REST API** — response includes `items[]` array for per-order tickets, `admits` count for all tickets
+- Simplified retro/bulk classes to delegate generation to `WCTQR_Generator`
+- Updated Plugin URI to correct GitHub repository
 
 ### 1.1.0
 - Added configurable settings panel
@@ -209,3 +221,4 @@ Built by [Karthik Umashankar](https://github.com/Kaptnik) for [Seattle Kannada S
 QR image generation via [QRServer API](https://goqr.me/api/).  
 PDF generation via [FPDF](http://www.fpdf.org/).  
 Scanner library: [ZXing](https://github.com/zxing-js/library).
+
